@@ -7,6 +7,7 @@ var FPS = 50;
  */
 var canvasWidth  = 500;
 var canvasHeight = 500;
+var tamTile      = 50;
 var stage;
 var player;
 // Color constant
@@ -77,8 +78,241 @@ function normalizeAngles(angle) {
     }
     return angle;
 }
+
+function rangeBetweenPoints(x1, x2, y1, y2) {
+    return Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+}
 // ----------------------------------------------- //
 
+class Lightning {
+    constructor(con, stage, x, y, anglePlayer, angleIncrement, column) {
+        this.ctx                = con;
+        this.stage              = stage;
+        this.x                  = x;
+        this.y                  = y;
+        this.angle              = anglePlayer;
+        this.angleIncrement     = angleIncrement;
+        this.column             = column;
+    
+        this.wallHitX           = 0;
+        this.wallHitY           = 0;
+
+        this.wallHitXHorizontal = 0;
+        this.wallHitYHorizontal = 0;
+
+        this.wallHitXVertical   = 0;
+        this.wallHitYVertical   = 0;
+        //console.log("Lightning create: " + this.anglePlayer);
+
+        this.cast();
+    }
+
+    setAngle(angle) {
+        this.angle = normalizeAngles(angle + this.angleIncrement);
+    }
+
+    cast() {
+        this.xIntercept = 0;
+        this.yIntercept = 0;
+
+        // Step 'x'
+        this.xStep = 0;
+        // Step 'y'
+        this.yStep = 0;
+        /**
+         * We find out the direction the lightning moves
+         */
+        this.down = false;
+        this.left = false;
+        if(this.angle < Math.PI) {
+            this.down = false;
+        }
+        if(this.angle > Math.PI / 2 && this.angle < 3 * Math.PI / 2) {
+            this.left = true;
+        }
+
+        // ========================================================== //
+        /**
+         * Horizontal collision
+         */
+        var crashHorizontal = false;
+
+        /**
+         * We search first for the intersection
+         */
+        this.yIntercept = Math.floor(this.y / tamTile) * tamTile;
+
+        /**
+         * If it points down, we increase one tile
+         */
+        if(this.down) {
+            this.yIntercept += tamTile;
+        }
+
+        var adjacent    = (this.yIntercept - this.y) / Math.tan(this.angle);
+        this.xIntercept = this.x + adjacent;
+
+        /**
+         * We calculate the distance of every step
+         */
+        this.yStep = tamTile;
+        this.xStep = this.yStep / Math.tan(this.angle);
+
+        /**
+         * If we go up, we reverse the 'Y' step
+         */
+        if(!this.down) {
+            this.yStep = -this.yStep;
+        }
+
+        /**
+         * We check the step 'X' is coherent
+         */
+        if((this.left && this.xStep > 0) || (!this.left && this.xStep < 0)) {
+            this.xStep = -this.xStep;
+        }
+
+        /**
+         * For the different steps
+         */
+        var nextXHorizontal = this.xIntercept;
+        var nextYHorizontal = this.yIntercept;
+
+        /**
+         * If you point up, I subtract one pixel to force the connection with the box.
+         */
+        if(!this.down) {
+            nextYHorizontal--;
+        }
+
+        /**
+         * Loop to find collision point
+         */
+        while(!crashHorizontal) {
+            /**
+             * We get the box (Rounding down)
+             */
+            var squareX = parseInt(nextXHorizontal / tamTile);
+            var squareY = parseInt(nextYHorizontal / tamTile);
+
+            /**
+             * We check for a collision
+             */
+            if(this.stage.collision(squareX, squareY)) {
+                crashHorizontal         = true;
+                this.wallHitXHorizontal = nextXHorizontal;
+                this.wallHitYHorizontal = nextYHorizontal;
+            } else {
+                nextXHorizontal += this.xStep;
+                nextYHorizontal += this.yStep;
+            }
+        }
+
+        // ========================================================== //
+        /**
+         * Vertical collision
+         */
+        var crashVertical = true;
+        /**
+         * We are looking for the first intersection
+         */
+        this.xIntercept   = Math.floor(this.x / tamTile) * tamTile;
+        /**
+         * If it points to the right, we increase 1 tile
+         */
+        if(!this.left) {
+            this.xIntercept += tamTile;
+        }
+        /**
+         * The opposite leg is added
+         */
+        var opposite      = (this.xIntercept - this.x) * Math.tan(this.angle);
+        this.yIntercept   = this.y + opposite;
+        // ========================================================== //
+        /**
+         * We calculate the distance of each step
+         */
+        this.xStep        = tamTile;
+        /**
+         * If you go left invert
+         */
+        if(this.left) {
+            this.xStep = -this.xStep;
+        }
+        this.yStep = tamTile * Math.tan(this.angle);
+
+        if((!this.down && this.yStep > 0) || (this.down && this.yStep < 0)) {
+            this.yStep = -this.yStep;            
+        }
+
+        var nextXVertical = this.xIntercept;
+        var nextYVertical = this.yIntercept;
+
+        if(this.left) {
+            nextXVertical--;
+        }
+        /**
+         * Loop with jumps to detect collision
+         */
+        while(!crashVertical && (nextXVertical =>0 && nextYVertical >= 0 && nextXVertical < canvasWidth && nextYVertical < canvasHeight)) {
+            /**
+             * We get the box rounded down
+             */
+            var squareX = parseInt(nextXVertical / tamTile);
+            var squareY = parseInt(nextYVertical / tamTile);
+
+            if(this.stage.collision(squareX, squareY)) {
+                crashVertical         = true;
+                this.wallHitXVertical = nextXVertical;
+                this.wallHitYVertical = nextYVertical;
+            } else {
+                nextXVertical += this.xStep;
+                nextYVertical += this.yStep;
+            }
+        }
+
+        var rangeHorizontal = 9999;
+        var rangeVertical   = 9999;
+
+        if(crashHorizontal) {
+            rangeHorizontal = rangeBetweenPoints(this.x, this.y, this.wallHitXHorizontal, this.wallHitYHorizontal);
+        }
+
+        if(crashVertical) {
+            rangeVertical = rangeBetweenPoints(this.x, this.y, this.wallHitXVertical, this.wallHitYVertical);
+        }
+
+        if(rangeHorizontal < rangeVertical) {
+            this.wallHitX = this.wallHitXHorizontal;
+            this.wallHitY = this.wallHitYHorizontal;
+        } else {
+            this.wallHitX = this.wallHitXVertical;
+            this.wallHitY = this.wallHitYVertical;
+        }
+
+        //this.wallHitX     = this.wallHitXHorizontal;
+        //this.wallHitY     = this.wallHitYHorizontal;
+        //this.wallHitX     = this.wallHitXVertical;
+        //this.wallHitY     = this.wallHitYVertical;
+    }
+
+    draw() {
+        this.cast();
+        /**
+         * Show line 'Lightning'
+         */
+        var xDestiny = this.wallHitX;
+        var yDestiny = this.wallHitY;
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.x, this.y);
+        this.ctx.lineTo(xDestiny, yDestiny);
+        this.ctx.strokeStyle = 'red';
+        this.ctx.stroke();
+    }
+}
+
+// ----------------------------------------------- //
 /**
  * Scenario class
  */
@@ -105,8 +339,8 @@ class Level {
          * Tile dimensions
          */
         this.heightTiles = parseInt(this.heightCanvas / this.heightMatrix);
-        this.widthTiles  = parseInt(this.widthCanvas / this.widthMatrix);        
-        
+        this.widthTiles  = parseInt(this.widthCanvas / this.widthMatrix);       
+
     }
 
     collision(x, y) {
@@ -158,6 +392,12 @@ class Player {
          * Convert radians
          */
         this.speedRotation = 3 * (Math.PI / 180); // Grades
+
+                
+        /**
+         * Lightning
+         */
+         this.lightning = new Lightning(this.ctx, this.stage, this.x, this.y, this.angleRotation, 0);
     }
 
     // ----------------------------------------------- //
@@ -218,6 +458,14 @@ class Player {
 
     draw() {
         this.update();
+        
+        /**
+         * We update the angle of the 'Lightning'
+         */
+        this.lightning.setAngle(this.angleRotation);
+        this.lightning.x = this.x;
+        this.lightning.y = this.y;
+        this.lightning.draw();
         // Frame
         this.ctx.fillStyle = playerColor;
         this.ctx.fillRect(this.x - 3, this.y - 3, 6, 6);
