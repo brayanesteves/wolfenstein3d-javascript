@@ -82,11 +82,6 @@ function normalizeAngles(angle) {
 function rangeBetweenPoints(x1, x2, y1, y2) {
     return Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 }
-
-function convertToRadians(angle) {
-    angle = angle * (Math.PI / 180);
-    return angle;
-}
 // ----------------------------------------------- //
 
 class Lightning {
@@ -95,12 +90,10 @@ class Lightning {
         this.stage              = stage;
         this.x                  = x;
         this.y                  = y;
+        this.angle              = anglePlayer;
         this.angleIncrement     = angleIncrement;
-        this.anglePlayer        = anglePlayer;
-        this.angle              = anglePlayer + angleIncrement;
-        
         this.column             = column;
-        this.range              = 0;
+    
         this.wallHitX           = 0;
         this.wallHitY           = 0;
 
@@ -111,12 +104,11 @@ class Lightning {
         this.wallHitYVertical   = 0;
         //console.log("Lightning create: " + this.anglePlayer);
 
-        //this.cast();
+        this.cast();
     }
 
     setAngle(angle) {
-        this.anglePlayer = angle;
-        this.angle       = normalizeAngles(angle + this.angleIncrement);
+        this.angle = normalizeAngles(angle + this.angleIncrement);
     }
 
     cast() {
@@ -262,7 +254,7 @@ class Lightning {
         /**
          * Loop with jumps to detect collision
          */
-        while(!crashVertical && (nextXVertical >= 0 && nextYVertical >= 0 && nextXVertical < canvasWidth && nextYVertical < canvasHeight)) {
+        while(!crashVertical && (nextXVertical =>0 && nextYVertical >= 0 && nextXVertical < canvasWidth && nextYVertical < canvasHeight)) {
             /**
              * We get the box rounded down
              */
@@ -293,23 +285,10 @@ class Lightning {
         if(rangeHorizontal < rangeVertical) {
             this.wallHitX = this.wallHitXHorizontal;
             this.wallHitY = this.wallHitYHorizontal;
-            /**
-             * Save range
-             */
-            this.range    = rangeHorizontal;
         } else {
             this.wallHitX = this.wallHitXVertical;
             this.wallHitY = this.wallHitYVertical;
-            /**
-             * Save range
-             */
-             this.range   = rangeVertical;
         }
-
-        /**
-         * Fisheye correction
-         */
-        this.range = this.range * Math.cos(this.anglePlayer - this.angle);
 
         //this.wallHitX     = this.wallHitXHorizontal;
         //this.wallHitY     = this.wallHitYHorizontal;
@@ -317,50 +296,19 @@ class Lightning {
         //this.wallHitY     = this.wallHitYVertical;
     }
 
-    renderWall() {
-        /**
-         * Real pixels that will have the wall
-         */
-        var heightTile           = 500;
-        /**
-         * Distance from player to projection plane
-         */
-        var rangePlaneProjection = (canvasWidth / 2) / Math.tan(meansFOV);
-        /**
-         * Height real wall
-         */
-        var heightWall           = (heightTile / this.range) * rangePlaneProjection;
-        /**
-         * We calculate where the line starts and ends
-         */
-        var y0                   = parseInt(canvasHeight / 2) - parseInt(heightWall / 2);
-        var y1                   = y0 + heightWall;
-        var x                    = this.column;
-        
-        /**
-         * Draw the column (Line)
-         */
-        this.ctx.beginPath();
-        this.ctx.moveTo(x, y0);
-        this.ctx.lineTo(x, y1);
-        this.ctx.strokeStyle = '#666666';
-        this.ctx.stroke();
-    }
-
     draw() {
         this.cast();
-        this.renderWall();
         /**
          * Show line 'Lightning'
          */
-        //var xDestiny = this.wallHitX;
-        //var yDestiny = this.wallHitY;
+        var xDestiny = this.wallHitX;
+        var yDestiny = this.wallHitY;
 
-        //this.ctx.beginPath();
-        //this.ctx.moveTo(this.x, this.y);
-        //this.ctx.lineTo(xDestiny, yDestiny);
-        //this.ctx.strokeStyle = 'red';
-        //this.ctx.stroke();
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.x, this.y);
+        this.ctx.lineTo(xDestiny, yDestiny);
+        this.ctx.strokeStyle = 'red';
+        this.ctx.stroke();
     }
 }
 
@@ -419,9 +367,6 @@ class Level {
     }
 }
 
-const FOV      = 60;
-const meansFOV = FOV / 2;
-
 class Player {
     /**
      * 
@@ -452,23 +397,7 @@ class Player {
         /**
          * Lightning
          */
-        this.numLightning = canvasWidth;
-        this.lightnings   = [];
-        /**
-         * Calculate the angle of each lightning
-         */
-        
-        var incrementAngle  = convertToRadians(FOV / this.numLightning);
-        var angleInit       = convertToRadians(this.angleRotation - meansFOV);
-        var angleLightnings = angleInit;
-        /**
-         * We created the ray
-         */
-        for (let i = 0; i < this.numLightning; i++) {
-            this.lightnings[i] = new Lightning(this.ctx, this.stage, this.x, this.y, this.angleRotation, angleLightnings, i);
-            angleLightnings   += incrementAngle;
-        }
-        //this.lightning    = new Lightning(this.ctx, this.stage, this.x, this.y, this.angleRotation, 0);
+         this.lightning = new Lightning(this.ctx, this.stage, this.x, this.y, this.angleRotation, 0);
     }
 
     // ----------------------------------------------- //
@@ -519,44 +448,37 @@ class Player {
         if(!this.collision(newX, newY)) {
             this.x = newX;
             this.y = newY;            
-        }        
+        }
+        
 
         // Turns
         this.angleRotation += this.turns * this.speedRotation;
         this.angleRotation = normalizeAngles(this.angleRotation);
-        /**
-         * We update the angle of the 'Lightning'
-         */
-        for (let i = 0; i < this.numLightning; i++) {
-            this.lightnings[i].x = this.x;
-            this.lightnings[i].y = this.y;
-            this.lightnings[i].setAngle(this.angleRotation);
-        }
-        //this.lightning.setAngle(this.angleRotation);
-        //this.lightning.x = this.x;
-        //this.lightning.y = this.y;        
     }
 
     draw() {
         this.update();
-        for(let i = 0; i < this.numLightning; i++) {
-            this.lightnings[i].draw();
-            //this.lightnings[i].renderWall();
-        }
-        //this.lightning.draw();
+        
+        /**
+         * We update the angle of the 'Lightning'
+         */
+        this.lightning.setAngle(this.angleRotation);
+        this.lightning.x = this.x;
+        this.lightning.y = this.y;
+        this.lightning.draw();
         // Frame
-        //this.ctx.fillStyle = playerColor;
-        //this.ctx.fillRect(this.x - 3, this.y - 3, 6, 6);
+        this.ctx.fillStyle = playerColor;
+        this.ctx.fillRect(this.x - 3, this.y - 3, 6, 6);
 
         // Address Line
-        //var xDestiny = this.x + Math.cos(this.angleRotation) * 40;
-        //var yDestiny = this.y + Math.sin(this.angleRotation) * 40;
+        var xDestiny = this.x + Math.cos(this.angleRotation) * 40;
+        var yDestiny = this.y + Math.sin(this.angleRotation) * 40;
 
-        //this.ctx.beginPath();
-        //this.ctx.moveTo(this.x, this.y);
-        //this.ctx.lineTo(xDestiny, yDestiny);
-        //this.ctx.strokeStyle = '#FFFFFF';
-        //this.ctx.stroke();
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.x, this.y);
+        this.ctx.lineTo(xDestiny, yDestiny);
+        this.ctx.strokeStyle = '#FFFFFF';
+        this.ctx.stroke();
     }
 }
 // ----------------------------------------------- //
@@ -589,6 +511,6 @@ function removeCanvas() {
 
 function main() {
     removeCanvas();
-    //stage.draw();
+    stage.draw();
     player.draw();
 }
