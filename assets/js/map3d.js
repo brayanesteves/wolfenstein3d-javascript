@@ -15,17 +15,13 @@ var player;
 const wallColor   = '#000000';
 const floorColor  = '#666666';
 const playerColor = '#FFFFFF';
-/**
- * Object tiles
- */
-var tiles;
 // ----------------------------------------------- //
 // LEVEL 0
 var level0 = [
-    [1, 1, 1, 3, 2, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 3, 0, 0, 2],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 0, 3, 0, 0, 0, 1],
+    [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 1, 1, 0, 0, 1],
     [1, 0, 0, 0, 0, 1, 1, 0, 0, 1],
     [1, 0, 0, 1, 1, 1, 0, 0, 0, 1],
@@ -74,18 +70,6 @@ document.addEventListener('keyup', function(key) {
             break;
     }
 });
-
-function scaleCanvas() {
-    canvas.style.width  = '800px';
-    canvas.style.height = '800px';
-}
-
-function floorCeiling() {
-    ctx.fillStyle = '#666666';
-    ctx.fillRect(0, 0, 500, 250);
-    ctx.fillStyle = '#752300';
-    ctx.fillRect(0, 250, 500, 500);
-}
 // ----------------------------------------------- //
 // Normalize angles
 function normalizeAngles(angle) {
@@ -126,8 +110,6 @@ class Lightning {
 
         this.wallHitXVertical   = 0;
         this.wallHitYVertical   = 0;
-        this.pixelTexture       = 0;
-        this.idTexture          = 0;
         //console.log("Lightning create: " + this.anglePlayer);
 
         //this.cast();
@@ -310,26 +292,20 @@ class Lightning {
         }
 
         if(rangeHorizontal < rangeVertical) {
-            this.wallHitX     = this.wallHitXHorizontal;
-            this.wallHitY     = this.wallHitYHorizontal;
+            this.wallHitX = this.wallHitXHorizontal;
+            this.wallHitY = this.wallHitYHorizontal;
             /**
              * Save range
              */
-            this.range        = rangeHorizontal;
-            var square        = parseInt(this.wallHitX / tamTile);
-            this.pixelTexture = this.wallHitX - (square * tamTile);            
+            this.range    = rangeHorizontal;
         } else {
-            this.wallHitX     = this.wallHitXVertical;
-            this.wallHitY     = this.wallHitYVertical;
+            this.wallHitX = this.wallHitXVertical;
+            this.wallHitY = this.wallHitYVertical;
             /**
              * Save range
              */
-            this.range        = rangeVertical;
-            var square        = parseInt(this.wallHitY / tamTile);
-            this.pixelTexture = this.wallHitY - (square * tamTile);
+             this.range   = rangeVertical;
         }
-
-        this.idTexture    = this.stage.tiles(this.wallHitX, this.wallHitY);
 
         /**
          * Fisheye correction
@@ -363,63 +339,13 @@ class Lightning {
         var x                    = this.column;
         
         /**
-         * Draw texture
-         */
-        var heightTexture        = 64;
-        var heightImage          = y0 - y1;
-        
-        ctx.mozImageSmoothingEnabled    = false;
-        ctx.webkitImageSmoothingEnabled = false;
-        ctx.msImageSmoothingEnabled     = false;
-        ctx.imageSmoothingEnabled       = false;
-
-        ctx.drawImage(
-            /**
-             * Specifies the image, canvas, or video element to use
-             */
-            tiles,
-            /**
-             * The 'x' coordinate where to start clipping
-             */
-            this.pixelTexture,
-            /**
-             * The 'y' coordinate where to start clipping
-             */
-            (this.idTexture - 1) * heightTexture,
-            /**
-             * The width of the clipped image
-             */
-            1,
-            /**
-             * The height of the clipped image
-             */
-            64,
-            /**
-             * The 'x' coordinate where to place the image on the canvas
-             */
-            this.column,
-            /**
-             * The 'y' coordinate where to place the image on the canvas
-             */
-            y1,
-            /**
-             * 
-             */
-            1,
-            /**
-             * 
-             */
-            heightImage
-        );
-
-        /**
          * Draw the column (Line)
          */
-        //this.ctx.beginPath();
-        //this.ctx.moveTo(x, y0);
-        //this.ctx.lineTo(x, y1);
-        //this.ctx.strokeStyle = '#666666';
-        //this.ctx.stroke();
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y0);
+        this.ctx.lineTo(x, y1);
+        this.ctx.strokeStyle = '#666666';
+        this.ctx.stroke();
     }
 
     draw() {
@@ -445,12 +371,6 @@ class Lightning {
  */
 
 class Level {
-    /**
-     * 
-     * @param {*} can 
-     * @param {*} con 
-     * @param {*} arr 
-     */
     constructor(can, con, arr) {
         this.canvas = can;
         this.ctx    = con;
@@ -482,12 +402,6 @@ class Level {
             crash = true;
         }
         return crash;
-    }
-
-    tiles(x, y) {
-        var squareX = parseInt(x / this.widthTiles);
-        var squareY = parseInt(y / this.heightTiles);
-        return(this.matrix[squareY][squareX]);
     }
 
     draw() {
@@ -650,7 +564,7 @@ class Player {
 
 function init() {
     canvas = document.getElementById("canvas");
-    ctx    = canvas.getContext("2d");
+    ctx = canvas.getContext("2d");
 
     /**
      * We modify the size of the canvas
@@ -658,16 +572,8 @@ function init() {
     canvas.width  = canvasWidth;
     canvas.height = canvasHeight;
 
-    scaleCanvas();
-
-    stage  = new Level(canvas, ctx, level0);
+    stage = new Level(canvas, ctx, level0);
     player = new Player(ctx, stage, 200, 100);
-    /**
-     * We load image of the 'Tiles'
-     */
-    tiles     = new Image();
-    tiles.src = "assets/img/png/walls.png";
-
     /**
      * We start the main game loop
      */
@@ -685,6 +591,5 @@ function removeCanvas() {
 function main() {
     removeCanvas();
     //stage.draw();
-    floorCeiling();
     player.draw();
 }
